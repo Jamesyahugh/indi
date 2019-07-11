@@ -83,7 +83,7 @@ bool WilliamOpticsOwlto::initProperties()
 bool WilliamOpticsOwlto::updateProperties(){
   if (isConnected()){
 
-    OwltoParams();
+    GetFocusParams();
     LOG_INFO("Owlto paramaters updated, focuser ready for use.");
   }else{
 
@@ -199,7 +199,7 @@ bool WilliamOpticsOwlto::SyncFocuser(uint32_t ticks)
 //     return sendCommand(cmd);
 // }
 
-void WilliamOpticsOwlto::OwltoParams()
+void WilliamOpticsOwlto::GetFocusParams()
 {
     if (readPosition())
         IDSetNumber(&FocusAbsPosNP, nullptr);
