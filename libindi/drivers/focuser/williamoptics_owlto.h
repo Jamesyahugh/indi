@@ -64,6 +64,6 @@ class WilliamOpticsOwlto : public INDI::Focuser
       double targetPos { 0 }, lastPos { 0 }, lastTemperature { 0 };
 
       static const uint8_t OWLTO_RES { 32 };
-      static const char OWLTO_DEL { '\n' };
+      static const char OWLTO_DEL { '#' };
       static const uint8_t OWLTO_TIMEOUT { 3 };
 };

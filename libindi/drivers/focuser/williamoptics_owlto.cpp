@@ -49,7 +49,7 @@ void ISSnoopDevice(XMLEle * root)
     woOwlto->ISSnoopDevice(root);
 }
 
-const char *WilliamOpticsOwlto::getDefaultName()
+const char * WilliamOpticsOwlto::getDefaultName()
 {
     return "William Optics Owlto";
 }
@@ -83,7 +83,7 @@ bool WilliamOpticsOwlto::initProperties()
 bool WilliamOpticsOwlto::updateProperties(){
   if (isConnected()){
 
-    // GetFocusParams();
+    OwltoParams();
     LOG_INFO("Owlto paramaters updated, focuser ready for use.");
   }else{
 
@@ -198,6 +198,15 @@ bool WilliamOpticsOwlto::SyncFocuser(uint32_t ticks)
 //     snprintf(cmd, OWLTO_RES, "[SREV%01d]", enabled ? 1 : 0);
 //     return sendCommand(cmd);
 // }
+
+void WilliamOpticsOwlto::OwltoParams()
+{
+    if (readPosition())
+        IDSetNumber(&FocusAbsPosNP, nullptr);
+
+    if (readMaxPosition())
+        IDSetNumber(&FocusMaxPosNP, nullptr);
+}
 
 bool WilliamOpticsOwlto::MoveFocuser(uint32_t position)
 {
