@@ -211,6 +211,10 @@
             <driver name="Focuser Simulator">indi_simulator_focus</driver>
             <version>1.0</version>
         </device>
+        <device label="William Optics Owlto">
+            <driver name="William Optics Owlto">indi_owlto_focus</driver>
+            <version>1.0</version>
+        </device>
         <device label="RoboFocus">
             <driver name="RoboFocus">indi_robo_focus</driver>
             <version>1.0</version>
