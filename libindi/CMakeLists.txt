@@ -995,10 +995,10 @@ install(TARGETS indi_deepskydad_af2_focus RUNTIME DESTINATION bin)
 
 ################ William Optics Owlto ################
 
-SET(williamoptics_owlto_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/drivers/focuser/williamoptics_owlto.cpp)
+SET(wo_owlto_SRC
+    ${CMAKE_CURRENT_SOURCE_DIR}/drivers/focuser/owltofocus.cpp)
 
-add_executable(indi_owlto_focus ${williamoptics_owlto_SRC})
+add_executable(indi_owlto_focus ${wo_owlto_SRC})
 target_link_libraries(indi_owlto_focus indidriver)
 install(TARGETS indi_owlto_focus RUNTIME DESTINATION bin)
 
