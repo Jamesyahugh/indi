@@ -1030,7 +1030,6 @@ add_executable(indi_deepskydad_af2_focus ${deepskydad_af2_SRC})
 target_link_libraries(indi_deepskydad_af2_focus indidriver)
 install(TARGETS indi_deepskydad_af2_focus RUNTIME DESTINATION bin)
 
-<<<<<<< HEAD:libindi/CMakeLists.txt
 ################ William Optics Owlto ################
 
 SET(wo_owlto_SRC
@@ -1039,7 +1038,6 @@ SET(wo_owlto_SRC
 add_executable(indi_owlto_focus ${wo_owlto_SRC})
 target_link_libraries(indi_owlto_focus indidriver)
 install(TARGETS indi_owlto_focus RUNTIME DESTINATION bin)
-=======
 ################ DeepSky Dad AF3 ################
 
 SET(deepskydad_af3_SRC
@@ -1048,7 +1046,6 @@ SET(deepskydad_af3_SRC
 add_executable(indi_deepskydad_af3_focus ${deepskydad_af3_SRC})
 target_link_libraries(indi_deepskydad_af3_focus indidriver)
 install(TARGETS indi_deepskydad_af3_focus RUNTIME DESTINATION bin)
->>>>>>> upstream/master:CMakeLists.txt
 
 ################ JMI Smart Focus Focuser ################
 
