@@ -83,7 +83,8 @@ bool Owlto::initProperties()
     INDI::Focuser::initProperties();
     
     IUFillSwitch(&CalibrationS[CALIBRATION_START],"CALIBRATION_START","Start Calibration", ISS_OFF);
-    IUFillSwitchVector(&CalibrationSP, CalibrationS, 1, getDeviceName(), "FOCUS_CALIBRATION", "Calibration", MAIN_CONTROL_TAB, IP_RW, ISR_1OFMANY, 0 , IPS_IDLE);
+    IUFillSwitch(&CalibrationS[CALIBRATION_RESET],"CALIBRATION_RESET","Reset Calibration", ISS_OFF);
+    IUFillSwitchVector(&CalibrationSP, CalibrationS, 2, getDeviceName(), "FOCUS_CALIBRATION", "Calibration", MAIN_CONTROL_TAB, IP_RW, ISR_1OFMANY, 0 , IPS_IDLE);
 
     /* Relative and absolute movement */
     FocusRelPosN[0].min = 0.;
@@ -95,6 +96,12 @@ bool Owlto::initProperties()
     FocusAbsPosN[0].max = 100000.;
     FocusAbsPosN[0].value = 50000.;
     FocusAbsPosN[0].step = 500.;
+
+    IUFillNumber(&StallguardThresN[0], "STALLGUARD_THRES", "UNIT", "%d", -64, 64, 1, 0);
+    IUFillNumberVector(&StallguardThresNP, StallguardThresN, 1, getDeviceName(), "FOCUS_STALLGUARD_THRES","Stallguard Thres", MAIN_CONTROL_TAB, IP_RW, 0, IPS_IDLE);
+
+    IUFillNumber(&MoveCurrentN[0], "MOVE_CURRENT", "32 MAX", "%d", 0, 32, 1, 0);
+    IUFillNumberVector(&MoveCurrentNP, MoveCurrentN, 1, getDeviceName(), "FOCUS_MOVE_CURRENT","Move Current", MAIN_CONTROL_TAB, IP_RW, 0, IPS_IDLE);
 
     setDefaultPollingPeriod(500);
     addDebugControl();
@@ -114,11 +121,17 @@ bool Owlto::updateProperties()
     if (isConnected())
     {
         defineSwitch(&CalibrationSP);
+        defineNumber(&StallguardThresNP);
+        defineNumber(&MoveCurrentNP);
+
+        GetFocusParams();
+
         LOG_INFO("Owlto Focus paramaters updated, focuser ready for use.");
     }
     else
     {
         deleteProperty(CalibrationSP.name);
+        deleteProperty(MoveCurrentNP.name);
     }
 
     return true;
@@ -141,14 +154,14 @@ bool Owlto::Ack()
     sleep(2);
 
     char res[OWLTO_RES] = {0};
-    if (!sendCommand("P:#", res))
+    if (!sendCommand("<GPOS>", res))
     {
         LOG_ERROR("ACK - getPosition failed");
         return false;
     }
 
     int32_t pos;
-    int rc = sscanf(res, ":%d#", &pos);
+    int rc = sscanf(res, "[%d]", &pos);
 
     LOGF_INFO("POS:%d", pos);
 
@@ -165,11 +178,11 @@ bool Owlto::readPosition()
 {
     char res[OWLTO_RES] = {0};
 
-    if (sendCommand("P:#", res) == false)
+    if (sendCommand("<GPOS>", res) == false)
         return false;
 
     int32_t pos;
-    int rc = sscanf(res, ":%d#", &pos);
+    int rc = sscanf(res, "[%d]", &pos);
 
     if (rc > 0)
         FocusAbsPosN[0].value = pos;
@@ -182,17 +195,63 @@ bool Owlto::readPosition()
     return true;
 }
 
+bool Owlto::readMaxPosition()
+{
+    char res[OWLTO_RES] = {0};
+
+    if (sendCommand("<GMXP>", res) == false)
+        return false;
+
+    int32_t steps = 0;
+    int rc = sscanf(res, "[%d]", &steps);
+
+    if (rc > 0)
+    {
+        FocusMaxPosN[0].value = steps;
+        FocusMaxPosNP.s = IPS_OK;
+    }
+    else
+    {
+        LOGF_ERROR("Unknown error: focuser max position value (%s)", res);
+        return false;
+    }
+
+    return true;
+}
+
+bool Owlto::readStallguardThres()
+{
+    char res[OWLTO_RES] = {0};
+
+    if (sendCommand("<GSGV>", res) == false)
+        return false;
+
+    int32_t thres = 0;
+    int rc = sscanf(res, "[%d]", &thres);
+    if (rc > 0)
+    {
+        StallguardThresN[0].value = thres;
+        StallguardThresNP.s = IPS_OK;
+    }
+    else
+    {
+        LOGF_ERROR("Unknown error: focuser SG value (%s)", res);
+        return false;
+    }
+
+    return true;
+}
 
 bool Owlto::isMoving()
 {
     char res[OWLTO_RES] = {0};
 
-    if (sendCommand("IM:#", res) == false)
+    if (sendCommand("<GMOV>", res) == false)
         return false;
 
-    if (strcmp(res, ":1#") == 0)
+    if (strcmp(res, "[1]") == 0)
         return true;
-    else if (strcmp(res, ":0#") == 0)
+    else if (strcmp(res, "[0]") == 0)
         return false;
 
     LOGF_ERROR("Unknown error: isMoving value (%s)", res);
@@ -202,14 +261,14 @@ bool Owlto::isMoving()
 bool Owlto::SyncFocuser(uint32_t ticks)
 {
     char cmd[OWLTO_RES] = {0};
-    snprintf(cmd, OWLTO_RES, "SP:%06d#", ticks);
+    snprintf(cmd, OWLTO_RES, "<SPOS%06d>", ticks);
     return sendCommand(cmd);
 }
 
 bool Owlto::ReverseFocuser(bool enabled)
 {
     char cmd[OWLTO_RES] = {0};
-    snprintf(cmd, OWLTO_RES, "INV:%01d#", enabled ? 1 : 0);
+    snprintf(cmd, OWLTO_RES, "<SINV%01d>", enabled ? 1 : 0);
     return sendCommand(cmd);
 }
 
@@ -217,7 +276,7 @@ bool Owlto::MoveFocuser(uint32_t position)
 {
     char cmd[OWLTO_RES] = {0};
     char res[OWLTO_RES] = {0};
-    snprintf(cmd, OWLTO_RES, "STARG:%06d#", position);
+    snprintf(cmd, OWLTO_RES, "<STAR%06d>", position);
     // Set Position First
     if (sendCommand(cmd, res) == false)
         return false;
@@ -229,7 +288,7 @@ bool Owlto::MoveFocuser(uint32_t position)
     // }
 
     // Now start motion toward position
-    if (sendCommand("SMOV:#") == false)
+    if (sendCommand("<SMOV>") == false)
         return false;
 
     return true;
@@ -246,7 +305,11 @@ bool Owlto::ISNewSwitch(const char *dev, const char *name, ISState *states, char
 
             switch (current_switch){
                 case CALIBRATION_START:
-                    if (sendCommand("CALIBRATE:#") == false)
+                    if (sendCommand("<CALI>") == false)
+                        return false;
+                    break;
+                case CALIBRATION_RESET:
+                    if (sendCommand("<RCAL>") == false)
                         return false;
                     break;
                 default:
@@ -261,7 +324,7 @@ bool Owlto::ISNewSwitch(const char *dev, const char *name, ISState *states, char
         }
     }
 
-    // return INDI::Focuser::ISNewSwitch(dev, name, states, names, n);
+    return INDI::Focuser::ISNewSwitch(dev, name, states, names, n);
 }
 
 bool Owlto::ISNewNumber(const char * dev, const char * name, double values[], char * names[], int n){
@@ -276,10 +339,54 @@ bool Owlto::ISNewNumber(const char * dev, const char * name, double values[], ch
             IDSetNumber(&FocusMaxPosNP, nullptr);
             return true;
         }
+
+        if (!strcmp(name, StallguardThresNP.name)){
+            IUUpdateNumber(&StallguardThresNP, values, names, n);
+            char cmd[OWLTO_RES] = {0};
+            snprintf(cmd , OWLTO_RES, "<SSGV%06d>", static_cast<int>(StallguardThresN[0].value));
+            bool rc = sendCommand(cmd);
+            if (!rc)
+            {
+                StallguardThresNP.s = IPS_ALERT;
+                return false;
+            }
+
+            StallguardThresNP.s = IPS_OK;
+            IDSetNumber(&StallguardThresNP, nullptr);
+            return true;
+        }
+        if (!strcmp(name, MoveCurrentNP.name)){
+            IUUpdateNumber(&MoveCurrentNP, values, names, n);
+            char cmd[OWLTO_RES] = {0};
+            snprintf(cmd , OWLTO_RES, "<SMVC%06d>", static_cast<int>(MoveCurrentN[0].value));
+            bool rc = sendCommand(cmd);
+            if (!rc)
+            {
+                MoveCurrentNP.s = IPS_ALERT;
+                return false;
+            }
+
+            MoveCurrentNP.s = IPS_OK;
+            IDSetNumber(&MoveCurrentNP, nullptr);
+            return true;
+        }
     }
     return INDI::Focuser::ISNewNumber(dev, name, values, names, n);
 }
 
+void Owlto::GetFocusParams()
+{
+    IUResetSwitch(&CalibrationSP);
+
+    if (readPosition())
+        IDSetNumber(&FocusAbsPosNP, nullptr);
+    
+    if (readMaxPosition())
+        IDSetNumber(&FocusMaxPosNP, nullptr);
+
+    if (readStallguardThres())
+        IDSetNumber(&StallguardThresNP, nullptr);
+}
 
 IPState Owlto::MoveFocuser(FocusDirection dir, int speed, uint16_t duration)
 {
@@ -390,7 +497,7 @@ void Owlto::TimerHit()
 
 bool Owlto::AbortFocuser()
 {
-    return sendCommand("A:#");
+    return sendCommand("<ABRT>");
 }
 
 bool Owlto::saveConfigItems(FILE * fp)

@@ -90,7 +90,10 @@ class Owlto : public INDI::Focuser
         bool sendCommand(const char * cmd, char * res = nullptr);
 
         // Get initial focuser parameter when we first connect
+        void GetFocusParams();
         bool readPosition();
+        bool readMaxPosition();
+        bool readStallguardThres();
         bool isMoving();
 
         void timedMoveCallback();
@@ -102,12 +105,20 @@ class Owlto : public INDI::Focuser
 
         ISwitch CalibrationS[1];
         ISwitchVectorProperty CalibrationSP;
+
+        INumber StallguardThresN[1];
+        INumberVectorProperty StallguardThresNP;
+
+        INumber MoveCurrentN[1];
+        INumberVectorProperty MoveCurrentNP;
+
         enum
         {
-            CALIBRATION_START
+            CALIBRATION_START,
+            CALIBRATION_RESET
         };
 
         static const uint8_t OWLTO_RES { 32 };
-        static const char OWLTO_DEL { '#' };
+        static const char OWLTO_DEL { ']' };
         static const uint8_t OWLTO_TIMEOUT { 3 };
 };
