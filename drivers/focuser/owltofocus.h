@@ -105,6 +105,9 @@ class Owlto : public INDI::Focuser
 
         ISwitch CalibrationS[1];
         ISwitchVectorProperty CalibrationSP;
+        
+        ISwitch SpeedModeS[1];
+        ISwitchVectorProperty SpeedModeSP;
 
         INumber StallguardThresN[1];
         INumberVectorProperty StallguardThresNP;
@@ -116,6 +119,13 @@ class Owlto : public INDI::Focuser
         {
             CALIBRATION_START,
             CALIBRATION_RESET
+        };
+        enum
+        {
+            SLOW,
+            MEDIUM,
+            FAST,
+            CUSTOM
         };
 
         static const uint8_t OWLTO_RES { 32 };

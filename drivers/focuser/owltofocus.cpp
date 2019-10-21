@@ -85,6 +85,12 @@ bool Owlto::initProperties()
     IUFillSwitch(&CalibrationS[CALIBRATION_START],"CALIBRATION_START","Start Calibration", ISS_OFF);
     IUFillSwitch(&CalibrationS[CALIBRATION_RESET],"CALIBRATION_RESET","Reset Calibration", ISS_OFF);
     IUFillSwitchVector(&CalibrationSP, CalibrationS, 2, getDeviceName(), "FOCUS_CALIBRATION", "Calibration", MAIN_CONTROL_TAB, IP_RW, ISR_1OFMANY, 0 , IPS_IDLE);
+    
+    IUFillSwitch(&SpeedModeS[SLOW],"SLOW","Slow", ISS_OFF);
+    IUFillSwitch(&SpeedModeS[MEDIUM],"MEDIUM","Medium", ISS_OFF);
+    IUFillSwitch(&SpeedModeS[FAST],"FAST","Fast", ISS_OFF);
+    IUFillSwitch(&SpeedModeS[CUSTOM],"CUSTOM","Custom", ISS_OFF);
+    IUFillSwitchVector(&SpeedModeSP, SpeedModeS, 4, getDeviceName(), "Speed Modes", "", MAIN_CONTROL_TAB, IP_RW, ISR_1OFMANY, 0 , IPS_IDLE);
 
     /* Relative and absolute movement */
     FocusRelPosN[0].min = 0.;
@@ -120,6 +126,7 @@ bool Owlto::updateProperties()
 
     if (isConnected())
     {
+        defineSwitch(&SpeedModeSP);
         defineSwitch(&CalibrationSP);
         defineNumber(&StallguardThresNP);
         defineNumber(&MoveCurrentNP);
@@ -130,7 +137,9 @@ bool Owlto::updateProperties()
     }
     else
     {
+        deleteProperty(SpeedModeSP.name);
         deleteProperty(CalibrationSP.name);
+        deleteProperty(StallguardThresNP.name);
         deleteProperty(MoveCurrentNP.name);
     }
 
@@ -298,6 +307,34 @@ bool Owlto::ISNewSwitch(const char *dev, const char *name, ISState *states, char
 {
     if (dev != nullptr && !strcmp(dev, getDeviceName()))
     {
+        //SpeedMode
+        if (!strcmp(name, SpeedModeSP.name)){
+            IUUpdateSwitch(&SpeedModeSP, states, names, n);
+            int current_switch = IUFindOnSwitchIndex(&SpeedModeSP);
+
+            switch (current_switch){
+                case SLOW:
+                    if (sendCommand("<SSPM1>") == false)
+                        return false;
+                    break;
+                case MEDIUM:
+                    if (sendCommand("<SSPM2>") == false)
+                        return false;
+                    break;
+                case FAST:
+                    if (sendCommand("<SSPM3>") == false)
+                        return false;
+                    break;
+                default:
+                    SpeedModeSP.s = IPS_ALERT;
+                    IDSetSwitch(&SpeedModeSP, "Unknown mode index %d", current_switch);
+                    return true;
+            }
+
+            SpeedModeSP.s = IPS_BUSY;
+            IDSetSwitch(&SpeedModeSP, nullptr);
+            return true;
+        }
         //Calibrate
         if (!strcmp(name, CalibrationSP.name)){
             IUUpdateSwitch(&CalibrationSP, states, names, n);
